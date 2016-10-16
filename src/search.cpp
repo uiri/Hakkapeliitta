@@ -925,19 +925,15 @@ int Search::quiescenceSearch(const Position& pos, int depth, int alpha, int beta
     transpositionTable.prefetch(pos.getHashKey());
 
     // Don't go over max ply.
-    if (ss->mPly >= maxPly)
-    {
+    if (ss->mPly >= maxPly) {
         return evaluation.evaluate(pos);
     }
 
     // Check for fifty move draws.
-    if (pos.getFiftyMoveDistance() >= 100)
-    {
-        if (inCheck)
-        {
+    if (pos.getFiftyMoveDistance() >= 100) {
+        if (inCheck) {
             MoveGen::generateLegalEvasions(pos, moveList);
-            if (moveList.empty())
-            {
+            if (moveList.empty()) {
                 return matedInPly(ss->mPly); // Can't claim draw on fifty move if mated.
             }
         }
@@ -945,8 +941,7 @@ int Search::quiescenceSearch(const Position& pos, int depth, int alpha, int beta
     }
 
     // Check for repetition draws. 
-    if (repetitionDraw(pos, ss->mPly))
-    {
+    if (repetitionDraw(pos, ss->mPly)) {
         return contempt[pos.getSideToMove()];
     }
 
@@ -962,11 +957,9 @@ int Search::quiescenceSearch(const Position& pos, int depth, int alpha, int beta
     const auto ttDepth = (inCheck || depth >= 0) ? 0 : -1;
 
     const auto ttEntry = transpositionTable.probe(pos.getHashKey());
-    if (ttEntry)
-    {
+    if (ttEntry) {
         bestMove = ttEntry->getBestMove();
-        if (ttEntry->getDepth() >= ttDepth)
-        {
+        if (ttEntry->getDepth() >= ttDepth) {
             const auto ttScore = ttScoreToRealScore(ttEntry->getScore(), ss->mPly);
             const auto ttFlags = ttEntry->getFlags();
             if (ttFlags == TranspositionTable::Flags::ExactScore
@@ -978,23 +971,17 @@ int Search::quiescenceSearch(const Position& pos, int depth, int alpha, int beta
         }
     }
 
-    if (inCheck)
-    {
+    if (inCheck) {
         bestScore = matedInPly(ss->mPly);
         delta = -infinity;
         MoveGen::generateLegalEvasions(pos, moveList);
-        if (moveList.empty())
-        {
+        if (moveList.empty()) {
             return bestScore;
         }
-    }
-    else
-    {
+    } else {
         bestScore = evaluation.evaluate(pos);
-        if (bestScore > alpha)
-        {
-            if (bestScore >= beta)
-            {
+        if (bestScore > alpha) {
+            if (bestScore >= beta) {
                 return bestScore;
             }
             alpha = bestScore;
@@ -1006,36 +993,31 @@ int Search::quiescenceSearch(const Position& pos, int depth, int alpha, int beta
 
     orderCaptures(pos, moveList, bestMove);
     repetitionHashes[rootPly + ss->mPly] = pos.getHashKey();
-    for (auto i = 0; i < moveList.size(); ++i)
-    {
+    for (auto i = 0; i < moveList.size(); ++i) {
         const auto move = selectMove(moveList, i);
         const auto givesCheck = pos.givesCheck(move);
         ++nodeCount;
         --nodesToTimeCheck;
 
         // Only prune moves in quiescence search if we are not in check.
-        if (!inCheck)
-        {
+        if (!inCheck) {
             const auto seeScore = pos.SEE(move);
 
             // SEE pruning. If the move seems to lose material prune it.
             // Since the SEE score is meaningless for discovered checks we don't prune them.
-            if (seeScore < 0 && givesCheck != 2)
-            {
+            if (seeScore < 0 && givesCheck != 2) {
                 continue;
             }
 
             // Delta pruning. If the move seems to have no chance of raising alpha prune it.
             // Pruning checks here is too dangerous.
-            if (delta + seeScore <= alpha && !givesCheck)
-            {
+            if (delta + seeScore <= alpha && !givesCheck) {
                 bestScore = std::max(bestScore, delta + seeScore);
                 continue;
             }
         }
 
-        if (!pos.legal(move, inCheck))
-        {
+        if (!pos.legal(move, inCheck)) {
             continue;
         }
 
@@ -1043,12 +1025,9 @@ int Search::quiescenceSearch(const Position& pos, int depth, int alpha, int beta
         newPosition.makeMove(move);
         const auto score = -quiescenceSearch(newPosition, depth - 1, -beta, -alpha, givesCheck != 0, ss + 1);
 
-        if (score > bestScore)
-        {
-            if (score > alpha)
-            {
-                if (score >= beta)
-                {
+        if (score > bestScore) {
+            if (score > alpha) {
+                if (score >= beta) {
                     transpositionTable.save(pos.getHashKey(),
                                             move,
                                             realScoreToTtScore(score, ss->mPly),
