@@ -24,32 +24,35 @@ ThreadPool::~ThreadPool()
     cleanup_epiphany_threadpool(dev);
 }
 
-TaskResult ThreadPool::joinEpiphanyJob(int c_id) {
-  TaskResult tr;
+static void waitOnDone(e_epiphany_t *dev, int r, int c) {
   int done;
-  off_t addr = 0x100;
 
   do {
-    e_read(dev, c_id/4, c_id%4, addr, &done, sizeof(done));
+    e_read(dev, r, c, DONE_ADDR, &done, sizeof(done));
   } while (!done);
+}
 
-  addr += 0x10;
-  e_read(dev, c_id/4, c_id%4, addr, &tr, sizeof(tr));
+TaskResult ThreadPool::joinEpiphanyJob(int c_id) {
+  TaskResult tr;
+
+  waitOnDone(dev, c_id/4, c_id%4);
+  e_read(dev, c_id/4, c_id%4, CORE_ADDR, &tr, sizeof(tr));
   return tr;
 }
 
 int ThreadPool::addEpiphanyJob(TaskResult result) {
-  int row, col, done;
-  off_t addr;
-  addr = 0x100;
-  row = core_id/4;
-  col = core_id%4;
+  int row, col, done, c_id;
+  c_id = core_id;
+  core_id = (core_id+1)%16;
+  row = c_id/4;
+  col = c_id%4;
+
+  waitOnDone(dev, row, col);
 
   done = 0;
-  e_write(dev, row, col, addr, &done, sizeof(done));
-  addr += 0x10;
-  e_write(dev, row, col, addr, &result, sizeof(TaskResult));
+  e_write(dev, row, col, DONE_ADDR, &done, sizeof(done));
+  e_write(dev, row, col, CORE_ADDR, &result, sizeof(TaskResult));
   e_start(dev, row, col);
 
-  return core_id++;
+  return c_id;
 }

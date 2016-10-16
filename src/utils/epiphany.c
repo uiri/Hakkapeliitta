@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "../search.h"
 #include "epiphany.h"
 
 e_epiphany_t *init_epiphany_threadpool(void) {
@@ -20,16 +21,14 @@ e_epiphany_t *init_epiphany_threadpool(void) {
   e_get_platform_info(&platform);
   e_open(dev, 0, 0, platform.rows, platform.cols);
 
+  e_load_group("e_task.elf", dev, 0, 0, platform.rows, platform.cols, E_FALSE);
   /* Initialize each core's `done` variable to 1 so that it will accept a job */
   done = 1;
   for (i = 0; i < platform.rows; i++) {
     for (j = 0; j < platform.cols; j++) {
-      done = 0;
-      e_write(dev, i, j, 0x0, &done, sizeof(done));
+      e_write(dev, i, j, DONE_ADDR, &done, sizeof(done));
     }
   }
-
-  e_load_group("e_task.elf", dev, 0, 0, platform.rows, platform.cols, E_FALSE);
 
   return dev;
 }

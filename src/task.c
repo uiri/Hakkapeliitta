@@ -18,8 +18,6 @@ void task(TaskResult *result) {
   int alpha = result->alpha;
   int beta = result->beta;
   int delta = result->delta;
-  bool inCheck = result->inCheck;
-  bool quietMove = result->quietMove;
   const bool lowerBound = score >= beta;
   result->searchNeedsMoreTime = lowerBound ? i > 0 : true;
   if (lowerBound) {
@@ -29,8 +27,8 @@ void task(TaskResult *result) {
       result->beta = beta + delta;
     }
     // Don't forget to update history and killer tables.
-    if (!inCheck) {
-      /* if (quietMove) { */
+    if (!result->inCheck) {
+      /* if (result->quietMove) { */
       /* 	historyTable.addCutoff(pos, move, depth); */
       /* 	killerTable.update(move, 0); */
       /* } */

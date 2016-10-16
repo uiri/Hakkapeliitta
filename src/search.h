@@ -5,8 +5,12 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <stdint.h>
 
+#define DONE_ADDR 0x2000
+#define CORE_ADDR 0x2010
+  
 typedef struct TranspositionTable TranspositionTable;
 typedef uint64_t HashKey;
 typedef struct Move Move;

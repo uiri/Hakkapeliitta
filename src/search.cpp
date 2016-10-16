@@ -466,16 +466,14 @@ void Search::think(const Position& root, SearchParameters sp)
                 };
 		/* write the result to all the cores here */
                 while (score >= beta || ((movesSearched == 1) && score <= alpha)) {
-		    /* write new alpha and new beta here */
-		    task(&result);
-                    /* sending results back */
+		    int c_id = tp.addEpiphanyJob(result);
+		    result = tp.joinEpiphanyJob(c_id);
 		    alpha = result.alpha;
 		    beta = result.beta;
 		    bestMove = *(Move*)result.bestMove;
 		    searchNeedsMoreTime = result.searchNeedsMoreTime;
 		    int boundScore = score >= result.beta ? TranspositionTable::Flags::LowerBoundScore 
 		      : TranspositionTable::Flags::UpperBoundScore;
-
 		    task_transposition_table(&transpositionTable, 
 					     pos.getHashKey(), bestMove, score,
 					     depth, boundScore);
