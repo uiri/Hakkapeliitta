@@ -28,7 +28,7 @@ void task(TaskResult *result) {
     }
   } else {
     result->alpha = -infinity;
-    if (!isLoseScore(score) && alpha - delta < result->alpha) {
+    if (!isLoseScore(score) && result->alpha < alpha - delta) {
       result->alpha = alpha - delta;
     }
   }

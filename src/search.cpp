@@ -56,32 +56,6 @@ extern "C" {
 
     return score;
   }
-
-  void task_transposition_table(TranspositionTable* tt, HashKey hashKey,
-				Move& bestMove, int score, int depth, int ttLowerBound) {
-    tt->save(hashKey, bestMove, realScoreToTtScore(score, 0), depth, ttLowerBound);
-  }
-
-  void task_pv_listener(SearchListener* listener, std::vector<Move> pv, uint64_t elapsed,
-			int nodeCount, int tbHits, int depth, int score, 
-			int boundScore, int selDepth) {
-    listener->infoPv(pv, 
-		     elapsed, 
-		     nodeCount,
-		     tbHits, 
-		     depth, 
-		     score, 
-		     boundScore,
-		     selDepth);
-  }
-
-  int task_new_search(Search* search, int newDepth, Position newPosition,
-		  int givesCheck, SearchStack* ss, TaskResult* result) {
-	     // result.lowerBound ? TranspositionTable::Flags::LowerBoundScore
-	     // : TranspositionTable::Flags::UpperBoundScore);
-    return newDepth > 0 ? -search->search<true>(newPosition, newDepth, -result->beta, -result->alpha, givesCheck != 0, ss + 1)
-      : -search->quiescenceSearch(newPosition, 0, -result->beta, -result->alpha, givesCheck != 0, ss + 1);
-  }
 }
 
 // Used for ordering moves during the quiescence search.
@@ -467,36 +441,40 @@ void Search::think(const Position& root, SearchParameters sp)
 		/* write the result to all the cores here */
                 while (score >= beta || ((movesSearched == 1) && score <= alpha)) {
 		    int c_id = tp.addEpiphanyJob(result);
-		    // Don't forget to update history and killer tables.
-		    if (!inCheck && score >= beta) {
-		      if (quietMove) {
-		      	historyTable.addCutoff(pos, move, depth);
-		      	killerTable.update(move, 0);
-		      }
-		      for (int j = 0; j < i; ++j) {
-		      	const Move move2 = rootMoveList.getMove(j);
-		      	if (!pos.captureOrPromotion(move2)) {
-		      	  historyTable.addNotCutoff(pos, move2, depth);
-		      	}
-		      }
-		    }
-		    result = tp.joinEpiphanyJob(c_id);
-		    alpha = result.alpha;
-		    beta = result.beta;
-		    bestMove = *(Move*)result.bestMove;
-		    searchNeedsMoreTime = result.searchNeedsMoreTime;
-		    int boundScore = score >= result.beta ? TranspositionTable::Flags::LowerBoundScore 
-		      : TranspositionTable::Flags::UpperBoundScore;
-		    task_transposition_table(&transpositionTable, 
-					     pos.getHashKey(), bestMove, score,
-					     depth, boundScore);
+                    // Don't forget to update history and killer tables.
+                    if (!inCheck && score >= beta) {
+                      if (quietMove) {
+                        historyTable.addCutoff(pos, move, depth);
+                        killerTable.update(move, 0);
+                      }
+                      for (int j = 0; j < i; ++j) {
+                        const Move move2 = rootMoveList.getMove(j);
+                        if (!pos.captureOrPromotion(move2)) {
+                          historyTable.addNotCutoff(pos, move2, depth);
+                        }
+                      }
+                    }
+                    int boundScore = score >= beta ? TranspositionTable::Flags::LowerBoundScore 
+                      : TranspositionTable::Flags::UpperBoundScore;
+                    result = tp.joinEpiphanyJob(c_id);
+                    alpha = result.alpha;
+                    beta = result.beta;
+                    bestMove = *(Move*)result.bestMove;
+                    searchNeedsMoreTime = result.searchNeedsMoreTime;
                     delta *= 2;
-		    pv = extractPv(pos);
-		    task_pv_listener(&listener, pv, 
-				     sw.elapsed<std::chrono::milliseconds>(), 
-				     nodeCount, tbHits, depth, score, 
-				     boundScore, selDepth);
-                    score = result.score = task_new_search(this, newDepth, newPosition, givesCheck, ss, &result);
+                    transpositionTable.save(pos.getHashKey(), 
+                                            bestMove, 
+                                            realScoreToTtScore(score, 0), 
+                                            depth, 
+                                            boundScore); 
+                    pv = extractPv(pos);
+                    listener.infoPv(pv, 
+                                     sw.elapsed<std::chrono::milliseconds>(), 
+                                     nodeCount, tbHits, depth, score, 
+                                     boundScore, selDepth);
+                    score = newDepth > 0 ? -search<true>(newPosition, newDepth, -beta, -alpha, givesCheck != 0, ss + 1)
+                                         : -quiescenceSearch(newPosition, 0, -beta, -alpha, givesCheck != 0, ss + 1);
+		    result.score = score;
                 }
                 /* Capture: score, move, alpha, beta, pos, depth */
                 /* sending results back */
