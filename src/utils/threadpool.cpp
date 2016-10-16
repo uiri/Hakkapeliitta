@@ -27,27 +27,27 @@ ThreadPool::~ThreadPool()
 TaskResult ThreadPool::joinEpiphanyJob(int c_id) {
   TaskResult tr;
   int done;
-  off_t addr;
+  off_t addr = 0x100;
 
   do {
-    e_read(dev, c_id/4, c_id%4, 0x0, &done, sizeof(done));
+    e_read(dev, c_id/4, c_id%4, addr, &done, sizeof(done));
   } while (!done);
 
-  addr += sizeof(done);
-  e_read(dev, c_id/4, c_id%4, 0x0, &tr, sizeof(tr));
+  addr += 0x10;
+  e_read(dev, c_id/4, c_id%4, addr, &tr, sizeof(tr));
   return tr;
 }
 
 int ThreadPool::addEpiphanyJob(TaskResult result) {
   int row, col, done;
   off_t addr;
-  addr = 0x0;
+  addr = 0x100;
   row = core_id/4;
   col = core_id%4;
 
   done = 0;
   e_write(dev, row, col, addr, &done, sizeof(done));
-  addr += sizeof(done);
+  addr += 0x10;
   e_write(dev, row, col, addr, &result, sizeof(TaskResult));
   e_start(dev, row, col);
 
