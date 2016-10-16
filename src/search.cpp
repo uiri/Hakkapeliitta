@@ -392,8 +392,7 @@ void Search::think(const Position& root, SearchParameters sp)
 
         orderRootMoves(pos, rootMoveList, bestMove);
         try {
-            for (auto i = 0; i < rootMoveList.size(); ++i)
-            {
+            for (auto i = 0; i < rootMoveList.size(); ++i) {
                 const auto move = selectMove(rootMoveList, i);
                 ++nodeCount;
                 --nodesToTimeCheck;
@@ -463,6 +462,7 @@ void Search::think(const Position& root, SearchParameters sp)
                                     selDepth);
                     score = newDepth > 0 ? -search<true>(newPosition, newDepth, -beta, -alpha, givesCheck != 0, ss + 1)
                                          : -quiescenceSearch(newPosition, 0, -beta, -alpha, givesCheck != 0, ss + 1);
+		    result.score = score;
                 }
                 /* Capture: score, move, alpha, beta, pos, depth */
                 /* sending results back */
@@ -583,63 +583,50 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
     transpositionTable.prefetch(pos.getHashKey());
 
     // Used for sending seldepth info.
-    if (ss->mPly > selDepth)
-    {
+    if (ss->mPly > selDepth) {
         selDepth = ss->mPly;
     }
 
     // Don't go over max ply.
-    if (ss->mPly >= maxPly)
-    {
+    if (ss->mPly >= maxPly) {
         return evaluation.evaluate(pos);
     }
 
     // Time check things.
-    if (nodesToTimeCheck <= 0)
-    {
+    if (nodesToTimeCheck <= 0) {
         nodesToTimeCheck = 10000;
         const auto time = sw.elapsed<std::chrono::milliseconds>();
 
         // Check if we have gone over the node limit.
-        if (nodeCount >= maxNodes)
-        {
+        if (nodeCount >= maxNodes) {
             searching = false;
         }
 
-        if (!infinite && !pondering) // Can't stop search if ordered to run indefinitely
-        {
+        if (!infinite && !pondering) { // Can't stop search if ordered to run indefinitely
             // First check hard cutoff, then check soft cutoff which depends on the current search situation.
-            if (time > maxTime || time > (searchNeedsMoreTime ? 5 * targetTime : targetTime))
-            {
+	    if (time > maxTime || time > (searchNeedsMoreTime ? 5 * targetTime : targetTime)) {
                 searching = false;
-            }
-            else
-            {
+            } else {
                 // TODO: Add easy move here.
             }
         }
 
-        if (!searching)
-        {
+        if (!searching) {
             throw StopSearchException("allocated time has run out");
         }
 
-        if (time >= nextSendInfo)
-        {
+        if (time >= nextSendInfo) {
             nextSendInfo += 1000;
             listener.infoRegular(nodeCount, tbHits, time);
         }
     }
 
     // Check for fifty move draws.
-    if (pos.getFiftyMoveDistance() >= 100)
-    {
-        if (inCheck)
-        {
+    if (pos.getFiftyMoveDistance() >= 100) {
+      if (inCheck) {
             // Might as well use quietsSearched at this point, we are returning anyways.
             MoveGen::generateLegalEvasions(pos, quietsSearched);
-            if (quietsSearched.empty())
-            {
+            if (quietsSearched.empty()) {
                 return bestScore; // Can't claim draw on fifty move if mated.
             }
         }
@@ -647,8 +634,7 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
     }
 
     // Check for repetition draws. Technically we are checking for 2-fold repetitions instead of 3-fold, but that is enough for game theoric correctness.
-    if (repetitionDraw(pos, ss->mPly))
-    {
+    if (repetitionDraw(pos, ss->mPly)) {
         return contempt[pos.getSideToMove()];
     }
 
@@ -660,17 +646,14 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
 
     // Probe the transposition table. 
     const auto ttEntry = transpositionTable.probe(pos.getHashKey());
-    if (ttEntry)
-    {
+    if (ttEntry) {
         ttMove = ttEntry->getBestMove();
-        if (ttEntry->getDepth() >= depth)
-        {
+        if (ttEntry->getDepth() >= depth) {
             const auto ttScore = ttScoreToRealScore(ttEntry->getScore(), ss->mPly);
             const auto ttFlags = ttEntry->getFlags();
             if (ttFlags == TranspositionTable::Flags::ExactScore
             || (ttFlags == TranspositionTable::Flags::UpperBoundScore && ttScore <= alpha)
-            || (ttFlags == TranspositionTable::Flags::LowerBoundScore && ttScore >= beta))
-            {
+	    || (ttFlags == TranspositionTable::Flags::LowerBoundScore && ttScore >= beta)) {
                 return ttScore;
             }
         }
@@ -679,13 +662,11 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
     // Probe the syzygy tablebases.
     if (pos.getTotalPieceCount() <= cardinality
         && (pos.getTotalPieceCount() < cardinality || depth >= probeDepth)
-        && pos.getFiftyMoveDistance() == 0)
-    {
+        && pos.getFiftyMoveDistance() == 0) {
         int found;
         score = Syzygy::probeWdl(pos, found);
 
-        if (found)
-        {
+        if (found) {
             ++tbHits;
             const auto drawScore = use50 ? 1 : 0;
             score = score < -drawScore ? -minMateScore + ss->mPly
@@ -700,19 +681,16 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
 
     // Reverse futility pruning / static null move pruning.
     // Not useful in PV-nodes as this tries to search for nodes where score >= beta but in PV-nodes score < beta.
-    if (!pvNode && !inCheck && pos.getNonPawnPieceCount(pos.getSideToMove()) && depth <= reverseFutilityDepth && staticEval - reverseFutilityMargin(depth) >= beta)
-    {
+    if (!pvNode && !inCheck && pos.getNonPawnPieceCount(pos.getSideToMove()) && depth <= reverseFutilityDepth && staticEval - reverseFutilityMargin(depth) >= beta) {
         return staticEval - reverseFutilityMargin(depth);
     }
 
     // Razoring.
     // Not useful in PV-nodes as this tries to search for nodes where score <= alpha but in PV-nodes score > alpha.
-    if (!pvNode && !inCheck && depth <= razoringDepth && staticEval + razoringMargin(depth) <= alpha)
-    {
+    if (!pvNode && !inCheck && depth <= razoringDepth && staticEval + razoringMargin(depth) <= alpha) {
         const auto razoringAlpha = alpha - razoringMargin(depth);
         score = quiescenceSearch(pos, 0, razoringAlpha, razoringAlpha + 1, false, ss);
-        if (score <= razoringAlpha)
-        {
+        if (score <= razoringAlpha) {
             return score;
         }
     }
@@ -720,13 +698,11 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
     // Null move pruning.
     // Not used when in a PV-node because we should _never_ fail high at a PV-node so doing this is a waste of time.
     // I don't really like the staticEval >= beta condition but the gain in elo is significant so...
-    if (!pvNode && ss->mAllowNullMove && !inCheck && depth > 1 && staticEval >= beta && pos.getNonPawnPieceCount(pos.getSideToMove()))
-    {
+    if (!pvNode && ss->mAllowNullMove && !inCheck && depth > 1 && staticEval >= beta && pos.getNonPawnPieceCount(pos.getSideToMove())) {
         const auto R = baseNullReduction + depth / 6;
         const auto likelyFailLow = ttEntry && ttEntry->getFlags() == TranspositionTable::Flags::UpperBoundScore
                                 && ttEntry->getDepth() >= depth - 1 - R && ttEntry->getScore() <= alpha;
-        if (!likelyFailLow)
-        {
+        if (!likelyFailLow) {
             repetitionHashes[rootPly + ss->mPly] = pos.getHashKey();
             ss->mCurrentMove = Move();
             Position newPosition(pos);
@@ -737,8 +713,7 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
             score = depth - 1 - R > 0 ? -search<false>(newPosition, depth - 1 - R, -beta, -beta + 1, false, ss + 1)
                 : -quiescenceSearch(newPosition, 0, -beta, -beta + 1, false, ss + 1);
             (ss + 1)->mAllowNullMove = true;
-            if (score >= beta)
-            {
+            if (score >= beta) {
                 // Don't return unproven mate scores as they cause some instability.
                 if (isMateScore(score))
                     score = beta;
@@ -753,8 +728,7 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
     }
 
     // Internal iterative deepening.
-    if (ttMove.empty() && (pvNode ? depth > 4 : depth > 7))
-    {
+    if (ttMove.empty() && (pvNode ? depth > 4 : depth > 7)) {
         // We can skip nullmove in IID since if it would have worked we wouldn't be here.
         ss->mAllowNullMove = false;
         score = search<pvNode>(pos, pvNode ? depth - 2 : depth / 2, alpha, beta, inCheck, ss);
@@ -762,8 +736,7 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
 
         // Now probe the TT and get the best move.
         const auto tte = transpositionTable.probe(pos.getHashKey());
-        if (tte)
-        {
+        if (tte) {
             ttMove = tte->getBestMove();
         }
     }
@@ -779,8 +752,7 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
     MoveSort ms(pos, historyTable, ttMove, killers.first, killers.second, counter, inCheck);
 
     repetitionHashes[rootPly + ss->mPly] = pos.getHashKey();
-    for (auto i = 0;; ++i)
-    {
+    for (auto i = 0;; ++i) {
         const auto move = ms.next();
         if (move.empty()) break;
 
@@ -796,43 +768,35 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
         --nodesToTimeCheck;
 
         // Futility pruning and late move pruning. Oh, SEE pruning as well.
-        if (nonCriticalMove)
-        {
-            if (futileNode)
-            {
+        if (nonCriticalMove) {
+            if (futileNode) {
                 bestScore = std::max(bestScore, staticEval + futilityMargin(depth));
                 ++prunedMoves;
                 continue;
             }
 
-            if (lmpNode && i >= lmpMoveCounts[depth])
-            {
+            if (lmpNode && i >= lmpMoveCounts[depth]) {
                 ++prunedMoves;
                 continue;
             }
 
-            if (seePruningNode && pos.SEE(move) < 0)
-            {
+            if (seePruningNode && pos.SEE(move) < 0) {
                 ++prunedMoves;
                 continue;
             }
         }
 
-        if (!pos.legal(move, inCheck))
-        {
+        if (!pos.legal(move, inCheck)) {
             continue;
         }
 
         Position newPosition(pos);
         newPosition.makeMove(move);
         ss->mCurrentMove = move;
-        if (!movesSearched)
-        {
+        if (!movesSearched) {
             score = newDepth > 0 ? -search<pvNode>(newPosition, newDepth, -beta, -alpha, givesCheck != 0, ss + 1)
                 : -quiescenceSearch(newPosition, 0, -beta, -alpha, givesCheck != 0, ss + 1);
-        }
-        else
-        {
+        } else {
             const auto reduction = ((lmrNode && nonCriticalMove) ? lmrReductions[std::min(i, 63)][std::min(depth, 63)] : 0);
 
             score = newDepth - reduction > 0 ? -search<false>(newPosition, newDepth - reduction, -alpha - 1, -alpha, givesCheck != 0, ss + 1)
@@ -841,43 +805,36 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
             // The LMR'd move didn't fail low, drop the reduction because that most likely caused the fail high.
             // If we are in a PV-node the alternative is to open the window first. The more unstable the search the better doing that is.
             // Before the tuned evaluation opening the window was better, after the tuned eval it is worse. Why?
-            if (reduction && score > alpha)
-            {
+            if (reduction && score > alpha) {
                 score = newDepth > 0 ? -search<false>(newPosition, newDepth, -alpha - 1, -alpha, givesCheck != 0, ss + 1)
                                      : -quiescenceSearch(newPosition, 0, -alpha - 1, -alpha, givesCheck != 0, ss + 1);
             }
 
             // If we are in a PV-node this is used to get the exact score for a new PV.
             // Since we used null window on the previous searches the score is only a bound, and this won't do for a PV.
-            if (score > alpha && score < beta)
-            {
+            if (score > alpha && score < beta) {
                 score = newDepth > 0 ? -search<true>(newPosition, newDepth, -beta, -alpha, givesCheck != 0, ss + 1)
                                      : -quiescenceSearch(newPosition, 0, -beta, -alpha, givesCheck != 0, ss + 1);
             }
         }
         ++movesSearched;
 
-        if (score > bestScore)
-        {
-            if (score > alpha)
-            {
-                if (score >= beta)
-                {
-                    transpositionTable.save(pos.getHashKey(), 
+        if (score > bestScore) {
+	  if (score > alpha) {
+              if (score >= beta) {
+                  transpositionTable.save(pos.getHashKey(), 
                                             move, 
                                             realScoreToTtScore(score, ss->mPly), 
                                             depth, 
                                             TranspositionTable::Flags::LowerBoundScore);
 
-                    // Updating move ordering heuristics while in check is not good, pollutes tables.
-                    if (!inCheck)
-                    {
-                        if (quietMove)
-                        {
+		  // Updating move ordering heuristics while in check is not good, pollutes tables.
+		  if (!inCheck) {
+		      if (quietMove) {
                             historyTable.addCutoff(pos, move, depth);
                             killerTable.update(move, ss->mPly);
                             counterMoveTable.update(pos, move, (ss - 1)->mCurrentMove);
-                        }
+                       }
                         for (auto j = 0; j < quietsSearched.size() - 1; ++j)
                         {
                             historyTable.addNotCutoff(pos, quietsSearched.getMove(j), depth);
@@ -894,10 +851,8 @@ int Search::search(const Position& pos, int depth, int alpha, int beta, bool inC
         }
     }
 
-    if (!movesSearched)
-    {
-        if (!prunedMoves)
-        {
+    if (!movesSearched) {
+        if (!prunedMoves) {
             return (inCheck ? bestScore : contempt[pos.getSideToMove()]);
         }
         // Looks like we pruned all moves away. Return some approximation of the score. Just alpha is fine too.
