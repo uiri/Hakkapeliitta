@@ -462,12 +462,12 @@ void Search::think(const Position& root, SearchParameters sp)
                 }
                 ++movesSearched;
                 TaskResult result = {
-		  score, alpha, beta, delta, &move, &bestMove, inCheck, quietMove, searchNeedsMoreTime
+		  i, score, alpha, beta, delta, &move, &bestMove, inCheck, quietMove, searchNeedsMoreTime
                 };
 		/* write the result to all the cores here */
                 while (score >= beta || ((movesSearched == 1) && score <= alpha)) {
 		    /* write new alpha and new beta here */
-		    result = task(result, i);
+		    task(&result);
                     /* sending results back */
 		    alpha = result.alpha;
 		    beta = result.beta;

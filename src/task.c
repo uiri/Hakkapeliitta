@@ -12,24 +12,21 @@ extern "C" {
   #define FLAG_UPPER 2
   #define FLAG_LOWER 3
 
-TaskResult task(TaskResult oldResult, int i) {
-  int score = oldResult.score;
-  int alpha, beta;
-  int previousAlpha = alpha = oldResult.alpha;
-  int previousBeta = beta = oldResult.beta;
-  int delta = oldResult.delta;
-  const Move* move = oldResult.move;
-  bool inCheck = oldResult.inCheck;
-  bool quietMove = oldResult.quietMove;
-  bool searchNeedsMoreTime = oldResult.searchNeedsMoreTime;
-  const Move* bestMove = oldResult.bestMove;
-  const bool lowerBound = score >= oldResult.beta;
+void task(TaskResult *result) {
+  int i = result->i;
+  int score = result->score;
+  int alpha = result->alpha;
+  int beta = result->beta;
+  int delta = result->delta;
+  bool inCheck = result->inCheck;
+  bool quietMove = result->quietMove;
+  const bool lowerBound = score >= beta;
+  result->searchNeedsMoreTime = lowerBound ? i > 0 : true;
   if (lowerBound) {
-    searchNeedsMoreTime = i > 0;
-    bestMove = move;
-    beta = infinity;
-    if (!isWinScore(score) && previousBeta + delta < beta) {
-      beta = previousBeta + delta;
+    result->bestMove = result->move;
+    result->beta = infinity;
+    if (!isWinScore(score) && beta + delta < result->beta) {
+      result->beta = beta + delta;
     }
     // Don't forget to update history and killer tables.
     if (!inCheck) {
@@ -45,15 +42,11 @@ TaskResult task(TaskResult oldResult, int i) {
       /* } */
     }
   } else {
-    searchNeedsMoreTime = true;
-    alpha = -infinity;
-    if (!isLoseScore(score) && previousAlpha - delta < alpha) {
-      alpha = previousAlpha - delta;
+    result->alpha = -infinity;
+    if (!isLoseScore(score) && alpha - delta < result->alpha) {
+      result->alpha = alpha - delta;
     }
   }
-  return (TaskResult){ score, alpha, beta, delta, move, bestMove,
-      inCheck, quietMove, searchNeedsMoreTime
-      };
 }
 
 #ifdef __cplusplus

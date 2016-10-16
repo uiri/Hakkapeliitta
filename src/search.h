@@ -17,6 +17,7 @@ typedef struct SearchStack SearchStack;
 
 typedef struct task_result TaskResult;
 struct task_result {
+  int i;
   int score;
   int alpha;
   int beta;

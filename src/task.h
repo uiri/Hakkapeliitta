@@ -10,7 +10,7 @@ extern "C" {
 
 #include "search.h"
 
-TaskResult task(TaskResult oldResult, int i);
+void task(TaskResult *result);
 
 #ifdef __cplusplus
 }
