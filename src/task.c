@@ -12,12 +12,11 @@ extern "C" {
   #define FLAG_UPPER 2
   #define FLAG_LOWER 3
 
-TaskResult task(TaskResult oldResult, int i, TranspositionTable* tt, 
-		HashKey hashKey) {
+TaskResult task(TaskResult oldResult, int i) {
   int score = oldResult.score;
   int alpha, beta;
-  int previousAlpha = oldResult.alpha;
-  int previousBeta = oldResult.beta;
+  int previousAlpha = alpha = oldResult.alpha;
+  int previousBeta = beta = oldResult.beta;
   int delta = oldResult.delta;
   const Move* move = oldResult.move;
   bool inCheck = oldResult.inCheck;
@@ -25,7 +24,6 @@ TaskResult task(TaskResult oldResult, int i, TranspositionTable* tt,
   bool searchNeedsMoreTime = oldResult.searchNeedsMoreTime;
   const Move* bestMove = oldResult.bestMove;
   const bool lowerBound = score >= oldResult.beta;
-  int depth = oldResult.depth;
   if (lowerBound) {
     searchNeedsMoreTime = i > 0;
     bestMove = move;
@@ -53,7 +51,7 @@ TaskResult task(TaskResult oldResult, int i, TranspositionTable* tt,
       alpha = previousAlpha - delta;
     }
   }
-  return (TaskResult){ score, alpha, beta, delta, depth, move, bestMove,
+  return (TaskResult){ score, alpha, beta, delta, move, bestMove,
       inCheck, quietMove, searchNeedsMoreTime
       };
 }

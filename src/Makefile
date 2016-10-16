@@ -10,5 +10,5 @@ LIBS= -le-hal -le-loader
 make: $(FILES)
 	g++ $(FLAGS) $(EINCS) $(ELIBS) $(LIBS) $(FILES) -o Hakkapeliitta
 
-e_task.elf: e_task.c e_task.h
+e_task.elf: e_task.c task.c task.h
 	e-gcc -T $(ELDF) $^ -o $@ -le-lib

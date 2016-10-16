@@ -1,7 +1,10 @@
-#include "e-lib.h"
-#include "common.h"
 #include "task.h"
 
-int main(void) {
-  task();
+int main(int argc, char** argv) {
+  TaskResult result;
+  int i;
+  /* read stuff */
+  task(result, i);
+  /* write stuff */
+  return 0;
 }

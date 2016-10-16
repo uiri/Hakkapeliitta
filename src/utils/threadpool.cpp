@@ -1,4 +1,4 @@
-#include "../move.hpp"
+#include "../search.h"
 #include "threadpool.hpp"
 #include "epiphany.h"
 
@@ -24,16 +24,32 @@ ThreadPool::~ThreadPool()
     cleanup_epiphany_threadpool(dev);
 }
 
-void ThreadPool::addEpiphanyJob(Move move) {
-  int row, col, done;
-  row = core_id/4;
-  col = core_id%4;
+TaskResult ThreadPool::joinEpiphanyJob(int c_id) {
+  TaskResult tr;
+  int done;
+  off_t addr;
+
   do {
-    e_read(dev, row, col, 0x2000, &done, sizeof(done));
+    e_read(dev, c_id/4, c_id%4, 0x0, &done, sizeof(done));
   } while (!done);
 
-  e_write(dev, row, col, 0x2008, &move, sizeof(Move));
+  addr += sizeof(done);
+  e_read(dev, c_id/4, c_id%4, 0x0, &tr, sizeof(tr));
+  return tr;
+}
+
+int ThreadPool::addEpiphanyJob(TaskResult result) {
+  int row, col, done;
+  off_t addr;
+  addr = 0x0;
+  row = core_id/4;
+  col = core_id%4;
+
+  done = 0;
+  e_write(dev, row, col, addr, &done, sizeof(done));
+  addr += sizeof(done);
+  e_write(dev, row, col, addr, &result, sizeof(TaskResult));
   e_start(dev, row, col);
 
-  core_id++;
+  return core_id++;
 }

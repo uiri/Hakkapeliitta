@@ -462,24 +462,25 @@ void Search::think(const Position& root, SearchParameters sp)
                 }
                 ++movesSearched;
                 TaskResult result = {
-		  score, alpha, beta, delta, depth, &move, &bestMove, inCheck, quietMove, searchNeedsMoreTime
+		  score, alpha, beta, delta, &move, &bestMove, inCheck, quietMove, searchNeedsMoreTime
                 };
+		/* write the result to all the cores here */
                 while (score >= beta || ((movesSearched == 1) && score <= alpha)) {
-		    result = task(result, i, &transpositionTable, pos.getHashKey());
+		    /* write new alpha and new beta here */
+		    result = task(result, i);
                     /* sending results back */
-		    score = result.score;
 		    alpha = result.alpha;
 		    beta = result.beta;
-                    delta = 2 * result.delta;
 		    bestMove = *(Move*)result.bestMove;
 		    searchNeedsMoreTime = result.searchNeedsMoreTime;
-		    pv = extractPv(pos);
 		    int boundScore = score >= result.beta ? TranspositionTable::Flags::LowerBoundScore 
 		      : TranspositionTable::Flags::UpperBoundScore;
 
 		    task_transposition_table(&transpositionTable, 
 					     pos.getHashKey(), bestMove, score,
 					     depth, boundScore);
+                    delta *= 2;
+		    pv = extractPv(pos);
 		    task_pv_listener(&listener, pv, 
 				     sw.elapsed<std::chrono::milliseconds>(), 
 				     nodeCount, tbHits, depth, score, 

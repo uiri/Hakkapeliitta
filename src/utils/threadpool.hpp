@@ -29,6 +29,7 @@
 #include <functional>
 #include <condition_variable>
 
+#include "../search.h"
 #include "epiphany.h"
 
 /// @brief A simple thread pool implementation.
@@ -48,7 +49,8 @@ public:
     /// @brief Adds a new job into the queue of the thread pool.
     template<class Fn, class... Args>
     void addJob(Fn&& fn, Args&&... args);
-    void addEpiphanyJob(Move move);
+    TaskResult joinEpiphanyJob(int c_id);
+    int addEpiphanyJob(TaskResult result);
 
 private:
     void loop();

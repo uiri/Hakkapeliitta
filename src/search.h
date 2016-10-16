@@ -1,6 +1,10 @@
 #ifndef SEARCH_H_
 #define SEARCH_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 typedef struct TranspositionTable TranspositionTable;
@@ -17,7 +21,6 @@ struct task_result {
   int alpha;
   int beta;
   int delta;
-  int depth;
   const Move* move;
   const Move* bestMove;
   bool inCheck;
@@ -31,5 +34,10 @@ int realScoreToTtScore(int score, int ply);
 
 int task_new_search(Search* search, int newDepth, Position newPosition,
 		    int givesCheck, SearchStack* ss, TaskResult* result);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

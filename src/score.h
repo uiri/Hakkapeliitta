@@ -17,23 +17,29 @@ const int infinity = MATE_SCORE + 1;
 const int minMateScore = 32767 - 1000;
 
 /// @brief Returns true if a given score is "mate in X".
-inline bool isWinScore(int score)
+#ifdef __cplusplus
+  inline
+#endif
+bool isWinScore(int score)
 {
-    assert(score > -INFINITY && score < INFINITY);
+    assert(score > -infinity && score < infinity);
     return score >= minMateScore;
 }
 
 /// @brief Returns true if a given score is "mated in X".
-inline bool isLoseScore(int score)
+#ifdef __cplusplus
+  inline
+#endif
+bool isLoseScore(int score)
 {
-    assert(score > -INFINITY && score < INFINITY);
+    assert(score > -infinity && score < infinity);
     return score <= -minMateScore;
 }
 
 /// @brief Returns true if the score is some kind of a mate score.
 inline bool isMateScore(int score)
 {
-    assert(score > -INFINITY && score < INFINITY);
+    assert(score > -infinity && score < infinity);
     return isWinScore(score) || isLoseScore(score);
 }
 

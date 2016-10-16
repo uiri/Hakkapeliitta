@@ -6,13 +6,11 @@ extern "C" {
 #endif
 
 #include <assert.h>
-#include <math.h>
 #include <stdbool.h>
 
 #include "search.h"
 
-TaskResult task(TaskResult oldResult, int i, TranspositionTable* tt, 
-		HashKey hashKey);
+TaskResult task(TaskResult oldResult, int i);
 
 #ifdef __cplusplus
 }
