@@ -439,7 +439,12 @@ void Search::think(const Position& root, SearchParameters sp)
                 while (score >= beta || ((movesSearched == 1) && score <= alpha)) {
                     result = task(result, i);
                     /* sending results back */
-                    delta *= 2;
+		    score = result.score;
+		    alpha = result.alpha;
+		    beta = result.beta;
+                    delta = 2 * result.delta;
+		    bestMove = *(Move*)result.bestMove;
+		    searchNeedsMoreTime = result.searchNeedsMoreTime;
                     transpositionTable.save(pos.getHashKey(), 
                                             bestMove, 
                                             realScoreToTtScore(score, 0), 
