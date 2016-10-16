@@ -28,10 +28,7 @@ struct task_result {
   int delta;
   const Move* move;
   const Move* bestMove;
-  bool inCheck;
-  bool quietMove;
   bool searchNeedsMoreTime;
-  bool lowerBound;
 };
 
 int ttScoreToRealScore(int score, int ply);

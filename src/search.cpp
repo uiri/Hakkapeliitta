@@ -462,11 +462,25 @@ void Search::think(const Position& root, SearchParameters sp)
                 }
                 ++movesSearched;
                 TaskResult result = {
-		  i, score, alpha, beta, delta, &move, &bestMove, inCheck, quietMove, searchNeedsMoreTime
+		  i, score, alpha, beta, delta, &move, &bestMove, searchNeedsMoreTime
                 };
 		/* write the result to all the cores here */
                 while (score >= beta || ((movesSearched == 1) && score <= alpha)) {
 		    int c_id = tp.addEpiphanyJob(result);
+		    printf("%d\n", c_id);
+		    // Don't forget to update history and killer tables.
+		    if (!inCheck && score >= beta) {
+		      if (quietMove) {
+		      	historyTable.addCutoff(pos, move, depth);
+		      	killerTable.update(move, 0);
+		      }
+		      for (int j = 0; j < i; ++j) {
+		      	const Move move2 = rootMoveList.getMove(j);
+		      	if (!pos.captureOrPromotion(move2)) {
+		      	  historyTable.addNotCutoff(pos, move2, depth);
+		      	}
+		      }
+		    }
 		    result = tp.joinEpiphanyJob(c_id);
 		    alpha = result.alpha;
 		    beta = result.beta;

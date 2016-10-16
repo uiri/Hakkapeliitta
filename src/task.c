@@ -26,19 +26,6 @@ void task(TaskResult *result) {
     if (!isWinScore(score) && beta + delta < result->beta) {
       result->beta = beta + delta;
     }
-    // Don't forget to update history and killer tables.
-    if (!result->inCheck) {
-      /* if (result->quietMove) { */
-      /* 	historyTable.addCutoff(pos, move, depth); */
-      /* 	killerTable.update(move, 0); */
-      /* } */
-      /* for (int j = 0; j < i; ++j) { */
-      /* 	const Move move2 = rootMoveList.getMove(j); */
-      /* 	if (!pos.captureOrPromotion(move2)) { */
-      /* 	  historyTable.addNotCutoff(pos, move2, depth); */
-      /* 	} */
-      /* } */
-    }
   } else {
     result->alpha = -infinity;
     if (!isLoseScore(score) && alpha - delta < result->alpha) {
