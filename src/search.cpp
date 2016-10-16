@@ -25,41 +25,63 @@
 #include "task.h"
 #include "score.h"
 
+
 extern "C" {
-  int extern_task(Search* search, int newDepth, Position newPosition,
-		   int givesCheck, void* ss, TaskResult* result) {
-    return search->extern_task_(newDepth, newPosition, givesCheck, ss, result);
+  // TT-scores are adjusted to avoid some well-known problems. This adjusts a score back to normal.
+  int ttScoreToRealScore(int score, int ply)
+  {
+    if (isLoseScore(score))
+      {
+        score += ply;
+      }
+    else if (isWinScore(score))
+      {
+        score -= ply;
+      }
+
+    return score;
   }
-}
 
-// TT-scores are adjusted to avoid some well-known problems. This adjusts a score back to normal.
-int ttScoreToRealScore(int score, int ply)
-{
+  // Converse of the previous function.
+  int realScoreToTtScore(int score, int ply)
+  {
     if (isLoseScore(score))
-    {
-        score += ply;
-    }
-    else if (isWinScore(score))
-    {
+      {
         score -= ply;
-    }
+      }
+    else if (isWinScore(score))
+      {
+        score += ply;
+      }
 
     return score;
-}
+  }
 
-// Converse of the previous function.
-int realScoreToTtScore(int score, int ply)
-{
-    if (isLoseScore(score))
-    {
-        score -= ply;
-    }
-    else if (isWinScore(score))
-    {
-        score += ply;
-    }
+  void task_transposition_table(TranspositionTable* tt, HashKey hashKey,
+				Move& bestMove, int score, int depth, int ttLowerBound) {
+    tt->save(hashKey, bestMove, realScoreToTtScore(score, 0), depth, ttLowerBound);
+  }
 
-    return score;
+  void task_pv_listener(SearchListener* listener, std::vector<Move> pv, uint64_t elapsed,
+			int nodeCount, int tbHits, int depth, int score, 
+			int boundScore, int selDepth) {
+    listener->infoPv(pv, 
+		     elapsed, 
+		     nodeCount,
+		     tbHits, 
+		     depth, 
+		     score, 
+		     boundScore,
+		     selDepth);
+  }
+
+  int task_new_search(Search* search, int newDepth, Position newPosition,
+		  int givesCheck, SearchStack* ss, TaskResult* result) {
+	     // result.lowerBound ? TranspositionTable::Flags::LowerBoundScore
+	     // : TranspositionTable::Flags::UpperBoundScore);
+    return newDepth > 0 ? -search->search<true>(newPosition, newDepth, -result->beta, -result->alpha, givesCheck != 0, ss + 1)
+      : -search->quiescenceSearch(newPosition, 0, -result->beta, -result->alpha, givesCheck != 0, ss + 1);
+  }
 }
 
 // Used for ordering moves during the quiescence search.
@@ -440,10 +462,10 @@ void Search::think(const Position& root, SearchParameters sp)
                 }
                 ++movesSearched;
                 TaskResult result = {
-                    score, alpha, beta, delta, &move, &bestMove, inCheck, quietMove, searchNeedsMoreTime
+		  score, alpha, beta, delta, depth, &move, &bestMove, inCheck, quietMove, searchNeedsMoreTime
                 };
                 while (score >= beta || ((movesSearched == 1) && score <= alpha)) {
-                    result = task(result, i);
+		    result = task(result, i, &transpositionTable, pos.getHashKey());
                     /* sending results back */
 		    score = result.score;
 		    alpha = result.alpha;
@@ -451,23 +473,18 @@ void Search::think(const Position& root, SearchParameters sp)
                     delta = 2 * result.delta;
 		    bestMove = *(Move*)result.bestMove;
 		    searchNeedsMoreTime = result.searchNeedsMoreTime;
-                    transpositionTable.save(pos.getHashKey(), 
-                                            bestMove, 
-                                            realScoreToTtScore(score, 0), 
-                                            depth, 
-                                            result.lowerBound ? TranspositionTable::Flags::LowerBoundScore
-                                                       : TranspositionTable::Flags::UpperBoundScore);
-                    pv = extractPv(pos);
-                    listener.infoPv(pv, 
-                                    sw.elapsed<std::chrono::milliseconds>(), 
-                                    nodeCount,
-                                    tbHits, 
-                                    depth, 
-                                    score, 
-                                    result.lowerBound ? TranspositionTable::Flags::LowerBoundScore
-                                               : TranspositionTable::Flags::UpperBoundScore,
-                                    selDepth);
-                    score = result.score = extern_task(this, newDepth, newPosition, givesCheck, ss, &result);
+		    pv = extractPv(pos);
+		    int boundScore = score >= result.beta ? TranspositionTable::Flags::LowerBoundScore 
+		      : TranspositionTable::Flags::UpperBoundScore;
+
+		    task_transposition_table(&transpositionTable, 
+					     pos.getHashKey(), bestMove, score,
+					     depth, boundScore);
+		    task_pv_listener(&listener, pv, 
+				     sw.elapsed<std::chrono::milliseconds>(), 
+				     nodeCount, tbHits, depth, score, 
+				     boundScore, selDepth);
+                    score = result.score = task_new_search(this, newDepth, newPosition, givesCheck, ss, &result);
                 }
                 /* Capture: score, move, alpha, beta, pos, depth */
                 /* sending results back */
@@ -570,12 +587,6 @@ void Search::think(const Position& root, SearchParameters sp)
 #ifdef _MSC_VER
 #pragma warning (disable : 4127) // Shuts up warnings about conditional branches always being true/false.
 #endif
-
-int Search::extern_task_(int newDepth, Position newPosition, int givesCheck, void* sss, TaskResult* result) {
-  SearchStack* ss = (SearchStack*)sss;
-  return newDepth > 0 ? -search<true>(newPosition, newDepth, -result->beta, -result->alpha, givesCheck != 0, ss + 1)
-      : -quiescenceSearch(newPosition, 0, -result->beta, -result->alpha, givesCheck != 0, ss + 1);
-}
 
 template <bool pvNode>
 int Search::search(const Position& pos, int depth, int alpha, int beta, bool inCheck, SearchStack* ss)
@@ -934,8 +945,8 @@ int Search::quiescenceSearch(const Position& pos, int depth, int alpha, int beta
             {
                 return ttScore;
             }
-        }
-    }
+        } 
+   }
 
     if (inCheck) {
         bestScore = matedInPly(ss->mPly);

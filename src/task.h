@@ -9,21 +9,10 @@ extern "C" {
 #include <math.h>
 #include <stdbool.h>
 
-typedef struct task_result TaskResult;
-struct task_result {
-  int score;
-  int alpha;
-  int beta;
-  int delta;
-  const void* move;
-  void* bestMove;
-  bool inCheck;
-  bool quietMove;
-  bool searchNeedsMoreTime;
-  bool lowerBound;
-};
+#include "search.h"
 
-TaskResult task(TaskResult oldResult, int i);
+TaskResult task(TaskResult oldResult, int i, TranspositionTable* tt, 
+		HashKey hashKey);
 
 #ifdef __cplusplus
 }

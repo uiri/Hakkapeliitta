@@ -2,30 +2,33 @@
 extern "C" {
 #endif
 
-  typedef struct Search Search;
-  typedef struct Position Position;
-  typedef struct HashKey HashKey;
-  typedef struct Move Move;
-
 #include "task.h"
 #include "score.h"
 #include "search.h"
 
-TaskResult task(TaskResult oldResult, int i) {
+  // From TT Flags
+  #define FLAG_EMPTY 0
+  #define FLAG_EXACT 1
+  #define FLAG_UPPER 2
+  #define FLAG_LOWER 3
+
+TaskResult task(TaskResult oldResult, int i, TranspositionTable* tt, 
+		HashKey hashKey) {
   int score = oldResult.score;
   int alpha, beta;
   int previousAlpha = oldResult.alpha;
   int previousBeta = oldResult.beta;
   int delta = oldResult.delta;
-  const void* move = oldResult.move;
+  const Move* move = oldResult.move;
   bool inCheck = oldResult.inCheck;
   bool quietMove = oldResult.quietMove;
   bool searchNeedsMoreTime = oldResult.searchNeedsMoreTime;
-  void* bestMove = oldResult.bestMove;
+  const Move* bestMove = oldResult.bestMove;
   const bool lowerBound = score >= oldResult.beta;
+  int depth = oldResult.depth;
   if (lowerBound) {
     searchNeedsMoreTime = i > 0;
-    bestMove = (void*)move;
+    bestMove = move;
     beta = infinity;
     if (!isWinScore(score) && previousBeta + delta < beta) {
       beta = previousBeta + delta;
@@ -50,7 +53,7 @@ TaskResult task(TaskResult oldResult, int i) {
       alpha = previousAlpha - delta;
     }
   }
-  return (TaskResult){ score, alpha, beta, delta, move, bestMove,
+  return (TaskResult){ score, alpha, beta, delta, depth, move, bestMove,
       inCheck, quietMove, searchNeedsMoreTime
       };
 }

@@ -36,6 +36,20 @@
 #include "movelist.hpp"
 #include "task.h"
 
+    // A stack used for holding information which needs to be accessible to other levels of recursion.
+    struct SearchStack
+    {
+        SearchStack(int newPly)
+        {
+            mAllowNullMove = true;
+            mPly = newPly;
+        }
+
+        Move mCurrentMove;
+        int mPly;
+        bool mAllowNullMove;
+    };
+
 /// @brief The core of this program, the search function.
 class Search
 {
@@ -82,21 +96,12 @@ public:
     int extern_task_(int newDepth, Position newPosition, int givesCheck,
 		     void* ss, TaskResult *result);
 
-private:
-    // A stack used for holding information which needs to be accessible to other levels of recursion.
-    struct SearchStack
-    {
-        SearchStack(int newPly)
-        {
-            mAllowNullMove = true;
-            mPly = newPly;
-        }
+    template <bool pvNode>
+    int search(const Position& pos, int depth, int alpha, int beta, bool inCheck, SearchStack* ss);
 
-        Move mCurrentMove;
-        int mPly;
-        bool mAllowNullMove;
-    };
-    
+    int quiescenceSearch(const Position& pos, int depth, int alpha, int beta, bool inCheck, SearchStack* ss);
+
+private:
     // Different classes used by the search function.
     ThreadPool tp;
     TranspositionTable transpositionTable;
@@ -108,11 +113,6 @@ private:
     Stopwatch sw;
 
     void think(const Position& root, SearchParameters searchParameters);
-
-    template <bool pvNode>
-    int search(const Position& pos, int depth, int alpha, int beta, bool inCheck, SearchStack* ss);
-
-    int quiescenceSearch(const Position& pos, int depth, int alpha, int beta, bool inCheck, SearchStack* ss);
 
     // Time allocation variables.
     bool searchNeedsMoreTime;
