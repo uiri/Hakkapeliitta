@@ -2,8 +2,14 @@
 extern "C" {
 #endif
 
+  typedef struct Search Search;
+  typedef struct Position Position;
+  typedef struct HashKey HashKey;
+  typedef struct Move Move;
+
 #include "task.h"
 #include "score.h"
+#include "search.h"
 
 TaskResult task(TaskResult oldResult, int i) {
   int score = oldResult.score;

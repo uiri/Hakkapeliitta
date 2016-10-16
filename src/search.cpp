@@ -25,6 +25,13 @@
 #include "task.h"
 #include "score.h"
 
+extern "C" {
+  int extern_task(Search* search, int newDepth, Position newPosition,
+		   int givesCheck, void* ss, TaskResult* result) {
+    return search->extern_task_(newDepth, newPosition, givesCheck, ss, result);
+  }
+}
+
 // TT-scores are adjusted to avoid some well-known problems. This adjusts a score back to normal.
 int ttScoreToRealScore(int score, int ply)
 {
@@ -460,9 +467,7 @@ void Search::think(const Position& root, SearchParameters sp)
                                     result.lowerBound ? TranspositionTable::Flags::LowerBoundScore
                                                : TranspositionTable::Flags::UpperBoundScore,
                                     selDepth);
-                    score = newDepth > 0 ? -search<true>(newPosition, newDepth, -beta, -alpha, givesCheck != 0, ss + 1)
-                                         : -quiescenceSearch(newPosition, 0, -beta, -alpha, givesCheck != 0, ss + 1);
-		    result.score = score;
+                    score = result.score = extern_task(this, newDepth, newPosition, givesCheck, ss, &result);
                 }
                 /* Capture: score, move, alpha, beta, pos, depth */
                 /* sending results back */
@@ -565,6 +570,12 @@ void Search::think(const Position& root, SearchParameters sp)
 #ifdef _MSC_VER
 #pragma warning (disable : 4127) // Shuts up warnings about conditional branches always being true/false.
 #endif
+
+int Search::extern_task_(int newDepth, Position newPosition, int givesCheck, void* sss, TaskResult* result) {
+  SearchStack* ss = (SearchStack*)sss;
+  return newDepth > 0 ? -search<true>(newPosition, newDepth, -result->beta, -result->alpha, givesCheck != 0, ss + 1)
+      : -quiescenceSearch(newPosition, 0, -result->beta, -result->alpha, givesCheck != 0, ss + 1);
+}
 
 template <bool pvNode>
 int Search::search(const Position& pos, int depth, int alpha, int beta, bool inCheck, SearchStack* ss)

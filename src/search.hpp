@@ -34,6 +34,7 @@
 #include "search_listener.hpp"
 #include "search_parameters.hpp"
 #include "movelist.hpp"
+#include "task.h"
 
 /// @brief The core of this program, the search function.
 class Search
@@ -78,6 +79,8 @@ public:
 
     /// @brief Stop pondering. This does not mean stopping the search.
     void stopPondering();
+    int extern_task_(int newDepth, Position newPosition, int givesCheck,
+		     void* ss, TaskResult *result);
 
 private:
     // A stack used for holding information which needs to be accessible to other levels of recursion.
