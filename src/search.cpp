@@ -467,7 +467,6 @@ void Search::think(const Position& root, SearchParameters sp)
 		/* write the result to all the cores here */
                 while (score >= beta || ((movesSearched == 1) && score <= alpha)) {
 		    int c_id = tp.addEpiphanyJob(result);
-		    printf("%d\n", c_id);
 		    // Don't forget to update history and killer tables.
 		    if (!inCheck && score >= beta) {
 		      if (quietMove) {

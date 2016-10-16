@@ -6,8 +6,9 @@ int main(int argc, char** argv) {
   int* done;
   done = (int*)(DONE_ADDR);
   result = (TaskResult*)(CORE_ADDR);
-  *done = 1;
   task(result);
+  *done = 1;
 
-  return 0;
+  //Put core in idle state
+  __asm__ __volatile__("idle");
 }
