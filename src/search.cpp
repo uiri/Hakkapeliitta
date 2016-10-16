@@ -22,6 +22,9 @@
 #include "utils/exception.hpp"
 #include "syzygy/tbprobe.hpp"
 
+#include "task.h"
+#include "score.h"
+
 // TT-scores are adjusted to avoid some well-known problems. This adjusts a score back to normal.
 int ttScoreToRealScore(int score, int ply)
 {
@@ -382,8 +385,6 @@ void Search::think(const Position& root, SearchParameters sp)
     repetitionHashes[rootPly] = pos.getHashKey();
     for (auto depth = 1; depth < maxDepth;)
     {
-        const auto previousAlpha = alpha;
-        const auto previousBeta = beta;
         const auto lmrNode = (!inCheck && depth >= lmrDepthLimit);
         const auto killers = killerTable.getKillers(0);
         auto movesSearched = 0;
@@ -399,8 +400,7 @@ void Search::think(const Position& root, SearchParameters sp)
                 searchNeedsMoreTime = i > 0;
 
                 // Start sending currmove info only after one second has elapsed.
-                if (sw.elapsed<std::chrono::milliseconds>() > 1000)
-                {
+                if (sw.elapsed<std::chrono::milliseconds>() > 1000) {
                     listener.infoCurrMove(move, depth, i);
                 }
 
@@ -415,102 +415,56 @@ void Search::think(const Position& root, SearchParameters sp)
                 Position newPosition(pos);
                 newPosition.makeMove(move);
                 ss->mCurrentMove = move;
-                if (!movesSearched)
-                {
+                if (!movesSearched) {
                     score = newDepth > 0 ? -search<true>(newPosition, newDepth, -beta, -alpha, givesCheck != 0, ss + 1)
                                          : -quiescenceSearch(newPosition, 0, -beta, -alpha, givesCheck != 0, ss + 1);
-                }
-                else
-                {
+                } else {
                     const auto reduction = ((lmrNode && nonCriticalMove) ? lmrReductions[std::min(i, 63)][std::min(depth, 63)] : 0);
-
                     score = newDepth - reduction > 0 ? -search<false>(newPosition, newDepth - reduction, -alpha - 1, -alpha, givesCheck != 0, ss + 1)
                                                      : -quiescenceSearch(newPosition, 0, -alpha - 1, -alpha, givesCheck != 0, ss + 1);
 
-                    if (reduction && score > alpha)
-                    {
+                    if (reduction && score > alpha) {
                         score = newDepth > 0 ? -search<false>(newPosition, newDepth, -alpha - 1, -alpha, givesCheck != 0, ss + 1)
                                              : -quiescenceSearch(newPosition, 0, -alpha - 1, -alpha, givesCheck != 0, ss + 1);
                     }
-                    if (score > alpha && score < beta)
-                    {
+                    if (score > alpha && score < beta) {
                         score = newDepth > 0 ? -search<true>(newPosition, newDepth, -beta, -alpha, givesCheck != 0, ss + 1)
                                              : -quiescenceSearch(newPosition, 0, -beta, -alpha, givesCheck != 0, ss + 1);
                     }
                 }
                 ++movesSearched;
-
-                while (score >= beta || ((movesSearched == 1) && score <= alpha))
-                {
-                    const auto lowerBound = score >= beta;
-                    if (lowerBound)
-                    {
-                        searchNeedsMoreTime = i > 0;
-                        bestMove = move;
-                        if (isWinScore(score))
-                        {
-                            beta = infinity;
-                        }
-                        else
-                        {
-                            beta = std::min(infinity, previousBeta + delta);
-                        }
-                        // Don't forget to update history and killer tables.
-                        if (!inCheck)
-                        {
-                            if (quietMove)
-                            {
-                                historyTable.addCutoff(pos, move, depth);
-                                killerTable.update(move, 0);
-                            }
-                            for (auto j = 0; j < i; ++j)
-                            {
-                                const auto move2 = rootMoveList.getMove(j);
-                                if (!pos.captureOrPromotion(move2))
-                                {
-                                    historyTable.addNotCutoff(pos, move2, depth);
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        searchNeedsMoreTime = true;
-                        if (isLoseScore(score))
-                        {
-                            alpha = -infinity;
-                        }
-                        else
-                        {
-                            alpha = std::max(-infinity, previousAlpha - delta);
-                        }
-                    }
+                TaskResult result = {
+                    score, alpha, beta, delta, &move, &bestMove, inCheck, quietMove, searchNeedsMoreTime
+                };
+                while (score >= beta || ((movesSearched == 1) && score <= alpha)) {
+                    result = task(result, i);
+                    /* sending results back */
                     delta *= 2;
                     transpositionTable.save(pos.getHashKey(), 
                                             bestMove, 
                                             realScoreToTtScore(score, 0), 
                                             depth, 
-                                            lowerBound ? TranspositionTable::Flags::LowerBoundScore 
+                                            result.lowerBound ? TranspositionTable::Flags::LowerBoundScore
                                                        : TranspositionTable::Flags::UpperBoundScore);
                     pv = extractPv(pos);
                     listener.infoPv(pv, 
                                     sw.elapsed<std::chrono::milliseconds>(), 
                                     nodeCount,
-                                    tbHits,    
+                                    tbHits, 
                                     depth, 
                                     score, 
-                                    lowerBound ? TranspositionTable::Flags::LowerBoundScore
+                                    result.lowerBound ? TranspositionTable::Flags::LowerBoundScore
                                                : TranspositionTable::Flags::UpperBoundScore,
                                     selDepth);
                     score = newDepth > 0 ? -search<true>(newPosition, newDepth, -beta, -alpha, givesCheck != 0, ss + 1)
                                          : -quiescenceSearch(newPosition, 0, -beta, -alpha, givesCheck != 0, ss + 1);
                 }
-
-                if (score > bestScore)
-                {
+                /* Capture: score, move, alpha, beta, pos, depth */
+                /* sending results back */
+                if (score > bestScore) {
                     bestScore = score;
-                    if (score > alpha) // No need to handle the case score >= beta, that is done slightly above
-                    {
+                    // No need to handle the case score >= beta, that is done slightly above
+                    if (score > alpha) {
                         bestMove = move;
                         alpha = score;
                         transpositionTable.save(pos.getHashKey(), 

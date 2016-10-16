@@ -22,6 +22,9 @@
 #include "search_parameters.hpp"
 #include "textio.hpp"
 #include "syzygy/tbprobe.hpp"
+#include "utils/threadpool.hpp"
+#include "score.h"
+#include "utils/epiphany.h"
 
 UCI::UCI() :
 search(*this), sync_cout(std::cout), ponder(true),

@@ -29,6 +29,8 @@
 #include <functional>
 #include <condition_variable>
 
+#include "epiphany.h"
+
 /// @brief A simple thread pool implementation.
 ///
 /// Most likely contains bugs. Haven't found them so far, if they exist.
@@ -46,6 +48,7 @@ public:
     /// @brief Adds a new job into the queue of the thread pool.
     template<class Fn, class... Args>
     void addJob(Fn&& fn, Args&&... args);
+    void addEpiphanyJob(Move move);
 
 private:
     void loop();
@@ -56,26 +59,11 @@ private:
     std::mutex jobQueueMutex;
     std::condition_variable cv;
     std::atomic<bool> terminateFlag;
+
+    e_epiphany_t* dev;
+    int core_id;
 };
 
-inline ThreadPool::ThreadPool(int amountOfThreads) :
-    terminateFlag(false)
-{
-    for (auto i = 0; i < amountOfThreads; ++i)
-    {
-        threads.emplace_back(&ThreadPool::loop, this);
-    }
-}
-
-inline ThreadPool::~ThreadPool()
-{
-    terminateFlag = true;
-    cv.notify_all();
-    for (auto& thread : threads)
-    {
-        thread.join();
-    }
-}
 
 template<class Fn, class... Args>
 void ThreadPool::addJob(Fn&& fn, Args&&... args)
